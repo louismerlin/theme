@@ -1,0 +1,9 @@
+{
+    "name": "test",
+    "location": "/home/louis/thisisatest",
+    "lines": [{
+        "prev": "hello",
+        "next": "hello %s",
+        "color": "base03"
+    }]
+}
