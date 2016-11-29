@@ -5,11 +5,14 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"os/user"
 	"strings"
 )
 
-func extractData(file os.FileInfo, flavor map[string]string) error {
+var flavor map[string]string
+
+func extractData(file os.FileInfo) error {
 	usr, err := user.Current()
 	if err != nil {
 		return (err)
@@ -29,34 +32,73 @@ func extractData(file os.FileInfo, flavor map[string]string) error {
 	}
 
 	fmt.Print(dat["name"], ": ")
-	err = readAndReplace(dat, flavor)
+	err = readAndReplace(dat)
 	if err != nil {
-		fmt.Println(err)
+		fmt.Println("\x1b[31;1m", err, "\x1b[0m")
 	} else {
-		fmt.Println("ok")
+		fmt.Println("\x1b[32;1mok\x1b[0m")
 	}
+
+	execute(dat["exec"].([]interface{}))
 
 	return nil
 }
 
-func readAndReplace(file map[string]interface{}, flavor map[string]string) error {
-	loc := file["location"].(string)
+func execute(commands []interface{}) {
+	usr, err := user.Current()
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	home := usr.HomeDir
+
+	for _, command := range commands {
+		fmt.Print("  ", command, ": ")
+		com := strings.Split(command.(string), " ")
+		var c *exec.Cmd
+		if len(com) == 1 {
+			c = exec.Command(com[0])
+		} else {
+			c = exec.Command(com[0], com[1:]...)
+		}
+		c.Dir = home
+		err := c.Run()
+		if err != nil {
+			fmt.Println("\x1b[31;1m", err, "\x1b[0m")
+		} else {
+			fmt.Println("\x1b[32;1mok\x1b[0m")
+		}
+	}
+}
+
+func readAndReplace(file map[string]interface{}) error {
+	usr, err := user.Current()
+	if err != nil {
+		return (err)
+	}
+
+	home := usr.HomeDir
+
+	loc := home + "/" + file["location"].(string)
 	input, err := ioutil.ReadFile(loc)
 	if err != nil {
 		return err
 	}
 
 	lines := file["lines"].([]interface{})
+	li := strings.Split(string(input), "\n")
 
 	for _, line := range lines {
 		line := line.(map[string]interface{})
 		prev := line["prev"].(string)
-		li := strings.Split(string(input), "\n")
 		for i, l := range li {
 			if strings.Contains(l, prev) {
 				next := line["next"].(string)
-				color := flavor[line["color"].(string)]
-				li[i] = fmt.Sprintf(next, color)
+				colors := line["colors"].([]interface{})
+				for j, color := range colors {
+					colors[j] = flavor[color.(string)]
+				}
+				li[i] = fmt.Sprintf(next, colors...)
 			}
 		}
 		output := strings.Join(li, "\n")
@@ -102,7 +144,6 @@ func main() {
 		return
 	}
 
-	var flavor map[string]string
 	for _, fl := range flavors {
 		if fl.Name()[:len(fl.Name())-5] == args[0] {
 			dir = home + "/.theme/flavors/" + fl.Name()
@@ -115,12 +156,19 @@ func main() {
 				fmt.Println(err)
 				return
 			}
+			flavor["name"] = fl.Name()[:len(fl.Name())-5]
 		}
 	}
 
 	if flavor == nil {
 		flavorNotFound(args[0], flavors)
 		return
+	}
+
+	if len(args) > 1 && args[1] == "light" {
+		flavor["darkness"] = "light"
+	} else {
+		flavor["darkness"] = "dark"
 	}
 
 	dir = home + "/.theme/templates/"
@@ -131,7 +179,7 @@ func main() {
 	}
 
 	for _, template := range templates {
-		err := extractData(template, flavor)
+		err := extractData(template)
 		if err != nil {
 			fmt.Println(err)
 			return
