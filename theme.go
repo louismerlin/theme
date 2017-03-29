@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/fogleman/gg"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -121,6 +122,13 @@ func flavorNotFound(flavor string, flavors []os.FileInfo) {
 	}
 }
 
+func createBackground(color string, home string) {
+	ctx := gg.NewContext(1, 1)
+	ctx.SetHexColor(color)
+	ctx.Clear()
+	ctx.SavePNG(home + "/Pictures/theme.png")
+}
+
 func main() {
 	args := os.Args[1:]
 
@@ -167,6 +175,18 @@ func main() {
 
 	if len(args) > 1 && args[1] == "light" {
 		flavor["darkness"] = "light"
+		temp := flavor["base00"]
+		flavor["base00"] = flavor["base07"]
+		flavor["base07"] = temp
+		temp = flavor["base01"]
+		flavor["base01"] = flavor["base06"]
+		flavor["base06"] = temp
+		temp = flavor["base02"]
+		flavor["base02"] = flavor["base05"]
+		flavor["base05"] = temp
+		temp = flavor["base03"]
+		flavor["base03"] = flavor["base04"]
+		flavor["base04"] = temp
 	} else {
 		flavor["darkness"] = "dark"
 	}
@@ -177,6 +197,8 @@ func main() {
 		fmt.Println(err)
 		return
 	}
+
+	createBackground(flavor["base00"], home)
 
 	for _, template := range templates {
 		err := extractData(template)
