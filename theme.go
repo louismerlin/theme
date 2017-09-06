@@ -123,10 +123,13 @@ func flavorNotFound(flavor string, flavors []os.FileInfo) {
 }
 
 func createBackground(color string, home string) {
-	ctx := gg.NewContext(1, 1)
+	ctx := gg.NewContext(100, 100)
 	ctx.SetHexColor(color)
 	ctx.Clear()
-	ctx.SavePNG(home + "/Pictures/theme.png")
+	err := ctx.SavePNG(home + "/Pictures/theme.png")
+	if err != nil {
+		fmt.Println(err);
+	}
 }
 
 func main() {
